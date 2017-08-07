@@ -24,7 +24,7 @@ public class CustomerController {
 	 * @return
 	 */
 	@RequestMapping("/customers")
-	public List<Customer> showAllCustomers(){
+	public Iterable<Customer> showAllCustomers(){
 		return service.getAllCustomers();
 	}
 	

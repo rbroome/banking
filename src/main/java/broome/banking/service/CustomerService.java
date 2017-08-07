@@ -6,89 +6,107 @@ import java.util.List;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
-import broome.banking.dao.AccountDAO;
-import broome.banking.dao.CustomerDAO;
-import broome.banking.dao.TransactionDAO;
 import broome.banking.model.Account;
 import broome.banking.model.Customer;
 import broome.banking.model.Transaction;
+import broome.banking.repo.AccountRepository;
+import broome.banking.repo.CustomerRepository;
+import broome.banking.repo.TransactionRepository;
 
-@Component
-public class CustomerService {
+
+@Service
+public class CustomerService implements CustomerServiceI{
 	
-	@Autowired 
-	CustomerDAO customerDao;
+	CustomerRepository customerRepository;
+	AccountRepository accountRepository;
+	TransactionRepository transactionRepository;
+	
 	@Autowired
-	AccountDAO accountDao;
-	@Autowired
-	TransactionDAO transactionDAO;
+	public CustomerService(CustomerRepository customerRepository,AccountRepository accountRepository,TransactionRepository transactionRepository) {
+		this.customerRepository = customerRepository;
+		this.accountRepository = accountRepository;
+		this.transactionRepository = transactionRepository;
+	}
 	
-	
-	/**
-	 * Generates a new customer.
-	 * 
-	 * @param customer
-	 * @return
-	 */
 	public Customer registerCustomer(Customer customer){
-
+		//old code
 		Set<Account> accounts = new HashSet<Account>(0);
 		accounts.add(new Account(new BigDecimal("0"),"12345"));
-		customer.setAccounts(accounts); 
-		customerDao.create(customer);
-
-		return customer;
-	}
-	
-	
-	public List<Customer> getAllCustomers(){
-		List<Customer> customers =customerDao.getAll();
+		customer.setAccounts(accounts);
+		//old
 		
-		return customers;
-	}
-	public Customer getCustomerById(int id){
-		return customerDao.getById(id);
-	}
-	
-	public Account getAccount(int customerId,String accountNumber){
-		Customer customer = customerDao.getById(customerId);
-		if(customer!=null){
-			for(Account account : customer.getAccounts())
-			if(account.getAccountNumber().equals(accountNumber)){
-				return account;
-			}
-		}
+		if(!customerRepository.exists(customer.getCustomer_id()))
+			return customerRepository.save(customer);
 		return null;
 	}
 	
-	public Set<Account> getAccountsForCustomer(int customerId){
-		Customer customer = customerDao.getById(customerId);
-		if(customer == null)
-			return null;
-		return customer.getAccounts();
+	public Iterable<Customer> getAllCustomers(){
+		return customerRepository.findAll();
 	}
+	public long total(){
+		return customerRepository.count();
+	}
+	
+	
+	//ACCOUNT STUFF
+	public Account createAccount(int customerId, String accountNumber){
+		if(!customerRepository.exists(customerId)){
+			throw new RuntimeException("Customer does not exist:" +customerId);
+		}
+		return accountRepository.save(new Account(new BigDecimal("0"),accountNumber));
+	}
+	public Iterable<Account> getAllAccounts(){
+		return accountRepository.findAll();
+	}
+	public long getTotalAccounts(){
+		return accountRepository.count();
+	}
+
+	@Override
+	public Account getAccount(int customerId, String accountNumber) {
+		Set<Account> accounts= getAccountsForCustomer(customerId);
+		if(accounts != null){
+		return accounts.stream().filter(account -> account.getAccountNumber().equals(accountNumber))
+				.findFirst().orElse(null);
+		}
+		return null;
+	}
+
+	@Override
+	public Set<Account> getAccountsForCustomer(int customerId) {
+		Customer customer = customerRepository.findOne(customerId);
+		if(customer!= null)
+			return customer.getAccounts();
+		return null;
+	}
+	
+	
+	//Transaction stuff
 	
 	public Account withdrawMoney(Transaction transaction){
 		Account account = changeAccountBalance(transaction.getCustomer_id(), transaction.getAccountNumber(), transaction.getAmount());
-		transactionDAO.create(transaction);
+		transactionRepository.save(transaction);
 		return account;
 	}
 	
 	private Account changeAccountBalance(int customer_id, String accountnumber,String amount){
-		Customer customer = customerDao.getById(customer_id);
+		Customer customer = customerRepository.findOne(customer_id);
 		Set<Account> accounts = customer.getAccounts();
-		Account updatedAccount = null;
-		for(Account account : accounts){
-			if(account.getAccountNumber().equals(accountnumber)){
-				BigDecimal newBalance = account.getBalance().add(new BigDecimal(amount));
-				account.setBalance(newBalance);
-				updatedAccount = account;
-			}
-		}
-		customerDao.update(customer);
-		return updatedAccount;
+		Account account = accounts.stream().filter(acc -> acc.getAccountNumber().equals(accountnumber))
+				.findFirst().orElse(null);
+		BigDecimal newBalance = account.getBalance().add(new BigDecimal(amount));
+		account.setBalance(newBalance);
+		
+		customerRepository.save(customer);
+		return account;
 	}
+
+	@Override
+	public Customer getCustomerById(int id) {
+		return customerRepository.findOne(id);
+	}
+	
 
 }
