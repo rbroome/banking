@@ -2,7 +2,6 @@ package broome.banking.service;
 
 import java.math.BigDecimal;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,8 +44,13 @@ public class CustomerService implements CustomerServiceI{
 	public Iterable<Customer> getAllCustomers(){
 		return customerRepository.findAll();
 	}
-	public long total(){
+	public long getTotalCustomers(){
 		return customerRepository.count();
+	}
+	
+	@Override
+	public Customer getCustomerById(int id) {
+		return customerRepository.findOne(id);
 	}
 	
 	
@@ -95,17 +99,12 @@ public class CustomerService implements CustomerServiceI{
 		Customer customer = customerRepository.findOne(customer_id);
 		Set<Account> accounts = customer.getAccounts();
 		Account account = accounts.stream().filter(acc -> acc.getAccountNumber().equals(accountnumber))
-				.findFirst().orElse(null);
+				.findFirst().orElseThrow(()-> new RuntimeException("Account not found"));
 		BigDecimal newBalance = account.getBalance().add(new BigDecimal(amount));
 		account.setBalance(newBalance);
 		
 		customerRepository.save(customer);
 		return account;
-	}
-
-	@Override
-	public Customer getCustomerById(int id) {
-		return customerRepository.findOne(id);
 	}
 	
 

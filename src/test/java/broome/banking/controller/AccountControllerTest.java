@@ -1,7 +1,5 @@
 package broome.banking.controller;
 
-import static org.junit.Assert.*;
-
 import java.util.Arrays;
 
 import org.json.JSONException;
